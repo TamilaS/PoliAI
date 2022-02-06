@@ -1,109 +1,103 @@
 import numpy as np
 import os
 import pandas as pd
+import math
 
-path = "."
+path = '.'
 
-filename_read = os.path.join(path, "Pizzeria_input.csv")
-file = pd.read_csv(filename_read, na_values=['NA', '?'])
+filename_read = os.path.join(path, "Planet_input.csv")
+table_file = pd.read_csv(filename_read, na_values=['NA', '?'])
 
 
-class Pizzeria():
+class Planet():
 
- def __init__(self, file):
-  self.pizzeria = file
-  self.size = self.pizzeria["N"][0]
-  # number of pizzarias
-  self.quantity = self.pizzeria["M"][0]
+ def __init__(self, table_file):
+  self.planet = table_file
+  # number of teleportation stations
+  self.stations_qtt = self.planet["X"][1]
+  self.start = [0.00, 0.00, 0.00]
+  self.end = self.planet.iloc[0].tolist()
 
- def create_city(self):
+ def stations_locations(self):
   '''
-  creates a city 
+  creates a dictionary with values being 
+  coordinates of the teleportation stations.
   '''
-  city = np.zeros((self.size, self.size), dtype=int)
-  return city
+  stations = {}
+  for i in range(2, int(self.stations_qtt) + 2):
+   station = self.planet.iloc[i].tolist()
+   x = station[0]
+   y = station[1]
+   z = station[2]
+   stations[i - 2] = [x, y, z]
 
- def f_location(self):
+  return stations
+
+ def f_distance(self, location1, location2):
   '''
-  locations of pizzarias in the city
+  calculates distance between two teleportation stations 
+  in the 3 dimensional Cartesian coordinate system.
   '''
-  location = {}
-  for i in range(1, self.quantity + 1):
-   x = self.pizzeria["N"][i] - 1
-   y = self.pizzeria["M"][i] - 1
-   location[i] = [x, y]
-  return location
+  x1 = location1[0]
+  y1 = location1[1]
+  z1 = location1[2]
 
- def f_delivery(self):
+  x2 = location2[0]
+  y2 = location2[1]
+  z2 = location2[2]
+
+  distance = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2 + (z2 - z1) ** 2)
+  return round(distance, 2)
+
+ def shortest_path(self):
   '''
-  distance of a deliver guy can reach
+  finds the shortest path from Earth to Zearth
   '''
-  delivery_list = []
-  for i in range(1, self.quantity + 1):
-   delivery = int(self.pizzeria["R"][i])
-   delivery_list.append(delivery)
-  return delivery_list
+  stations = self.stations_locations()
+  # at the begining distance to all the stations is infinity
+  total_number_of_stations = int(self.stations_qtt + 2)
+  path = []  # storing visited teleportation stations
 
- def greatest_selection(self):
+  current_location = self.start
+  cost1 = {}
+  # distances from the starting station to the each intermediate teleportation station
+  for i in range(len(stations)):
+   distance = self.f_distance(self.start, list(stations.values())[i])
+   cost1[i] = distance
+  shortest_path = min(cost1.values())
+  index = list(cost1.keys())[list(cost1.values()).index(shortest_path)]
+  next_location = stations[index]
+  path.append(shortest_path)
+  del stations[index]
+
+  cost2 = {}
+  for i in range(len(stations)):
+   distance = self.f_distance(next_location, list(stations.values())[i])
+   cost2[i] = distance
+  shortest_path = min(cost2.values())
+  index = list(cost2.keys())[list(cost2.values()).index(shortest_path)]
+  next_location = stations[index + 1]
+  path.append(shortest_path)
+
+  distance = self.f_distance(next_location, self.end)
+  path.append(shortest_path)
+  return path
+
+ def run(self):
   '''
-  returns the number of pizzerias that deliver pizzas to the block 
-  with the greatest selection of pizzas.
+  returns one real number to 2 decimal places, representing 
+  the maximum distance of the safest path from Earth to Zearth.
   '''
-  location = self.f_location()
-  delivery = self.f_delivery()
-  city = self.create_city()
-
-  for i in range(1, self.quantity + 1):
-   a = location[i][0]
-   b = location[i][1]
-   city[a, b] += 1
-   delivery_pizzaria = delivery[i - 1]
-   for i in range(1, delivery_pizzaria + 1):
-    if a == 0 or a == (self.size - 1) or b == 0 or b == (self.size - 1):  # corners and sides
-     if a != 0:
-      city[a - i, b] += 1  # u
-     if a != (self.size - 1):
-      city[a, b + i] += 1  # r
-     if b != (self.size - 1):
-      city[a + i, b] += 1  # d
-     if b != 0:
-      city[a, b - i] += 1  # l
-
-     if self.quantity - i > 0:
-      if (a == 0 and b == 0) or (a == 0 and b != 0 and b != (self.size - 1)) or (
-              a != 0 and a != (self.size - 1) and b == 0):
-       city[a + i, b + i] += 1  # upper right diagonal
-      if (a == (self.size - 1) and b == (self.size - 1)) or (a == 0 and b != 0 and b != (self.size - 1)) or (
-              a != 0 and a != (self.size - 1) and b == (self.size - 1)):
-       city[a + i, b - i] += 1  # upper left diagonal
-      if (a == 0 and b == (self.size - 1)) or (a != 0 and a != (self.size - 1) and b == 0) or (
-              a == (self.size - 1) and b != 0 and b != (self.size - 1)):
-       city[a - i, b + i] += 1  # lower right diagonal
-      if (a == (self.size - 1) and b == 0) or (a == (self.size - 1) and b != 0 and b != (self.size - 1)) or (
-              a != 0 and a != (self.size - 1) and b == (self.size - 1)):
-       city[a - i, b - i] += 1  # lower left diagonal
-
-    elif a < self.size and b < self.size:  # neighbours in adjacent locations
-     if self.quantity - i >= 0:
-      city[a, b + i] += 1  # r
-      city[a, b - i] += 1  # l
-      city[a + i, b] += 1  # d
-      city[a - i, b] += 1  # u
-     if self.quantity - i > 0:
-      city[a - i, b - i] += 1  # lower left diagonal
-      city[a + i, b + i] += 1  # upper right diagonal
-      city[a - i, b + i] += 1  # lower right diagonal
-      city[a + i, b - i] += 1  # upper left diagonal
-
-  city = np.flipud(city)
-  greatest_selection_number = np.amax(city)
-  return greatest_selection_number
+  stations = self.stations_locations()
+  shortest_path = self.shortest_path()
+  answer = max(shortest_path)
+  return format(answer, '.2f')
 
 
 def main():
- pizzeria = Pizzeria(file)
- greatest_selection = pizzeria.greatest_selection()
- print(greatest_selection)
+ planet = Planet(table_file)
+ shortest_path = planet.run()
+ print(shortest_path)
 
 
 if __name__ == '__main__':
